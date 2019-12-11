@@ -7,47 +7,43 @@ type label_arc = {  flot: int; capacity: int}
 type graph_ff = label_arc graph
 type path = id list
 
-
+(*Display the label on the arcs, format : flow/capacity*)
 let string_of_label label = sprintf "%d/%d \n" label.flot label.capacity 
 
 
-
-
-(**trouver le maximum qu'on puisse augmenter les arcs**)
-
-let rec max1 graph t1 chemin = match chemin with 
+(*Find the maximum value to increment the path*)
+let rec max1 graph t1 path = match path with 
   | None -> None
   | Some [] -> Some max_int
   | Some (t2::q) ->  min (find_arc graph t1 t2) (max1 graph t2 (Some q))
 
 
-(**appliquer jusqu'à saturation**)
-
-let rec incrementer graph aug t1 chemin= match chemin with
+(*Apply the incrementation to all the arcs on the path found*)
+let rec incrementer graph aug t1 path = match path  with
   | None -> graph
   | Some [] -> graph
   | Some (t2::q) ->   let new_graph = add_arc graph t1 t2 (-aug) in 
     let new_graph = add_arc new_graph t2 t1 aug in
     incrementer new_graph aug t2 (Some q) ;;
 
-(** fonctions trouver_voisin/voisin renvoient le premier id (node) qui n'a pas été déjà visité **)
+(*Return the first node ID which has not already been visited*)
 let rec trouver_voisin list_arcs node_list_aux = match list_arcs with
   | []          -> -1
   | (id,x) :: q -> if (List.mem id node_list_aux) || x == 0 then trouver_voisin q node_list_aux else id
 
-(** s=source, elle change à chaque appel récursif, p ne change pas, node_list = liste des noeuds qu'on a déjà visité **)
+(** The source change each recursive call, the sink does not change and node_list is the nodes list which are already visited*)
 
-let rec find_path graph node_list s p = 
+let rec find_path graph node_list source sink = 
 
-  if s = p then 
+  if source = sink then 
     Some []
   else
 
-    match trouver_voisin (out_arcs graph s) node_list with
+    match trouver_voisin (out_arcs graph source) node_list with
     | -1    -> None 
     | id    ->
-      match find_path graph (id::node_list) id p with
-      | None      -> find_path graph (id::node_list) s p (**si le noeuf actued n'a pas de voisin non visité, on remonte**)
+      match find_path graph (id::node_list) id sink with
+      | None      -> find_path graph (id::node_list) source sink (*if the actual node has not a neighbour not visited, we will take the parent node (node before)*)
       | Some path -> Some (id :: path)
 
 
@@ -58,20 +54,15 @@ let rec print_list = function
 
 let print_path path = match path with
   | None      -> Printf.printf "No path found"
-  | Some l    -> print_list l (**affiche le chemin SANS la source**)
-
-(**faire le graphe d'écart**)
+  | Some l    -> print_list l (*print the path without the source*)
 
 
+(*return the flow*)
 let get_real_flow graph id1 id2 = match find_arc graph id2 id1 with
   |None -> 0
   |Some x -> x
 
-
-(*let rec get_capacity_arc graphe id1 id2 isFirst = match find_arc graphe id1 id2 with
-  |None -> if isFirst then get_capacity_arc graphe id2 id1 false else 0
-  |Some x -> if isFirst then x + get_capacity_arc graphe id2 id1 false else x
-  in*)
+(*print answer*)
 let display_solution graph source = 
   let out_arcs_src = out_arcs graph source in
 
@@ -83,6 +74,7 @@ let display_solution graph source =
   let solution_src = out_arcs out_arcs_src in
   solution_src
 
+(*******FORD FULKERSON ALGORITHM*********)
 let rec ford_fulkerson base_graph changing_graph path source sink= match path with 
   | None -> let record_of_int a = {capacity = a ; flot = -50} in 
     let graph_tmpry = gmap base_graph record_of_int in
